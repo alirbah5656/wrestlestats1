@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wrestling Match Analytics (HTML)</title>
+  <style>
+    :root{
+      --bg-dark:#0f1724;--panel-dark:#111827;--muted-dark:#6b7280;--accent:#3b82f6;--card:#1f2937;--glass:rgba(255,255,255,0.03);
+      --bg-light:#f8fafc;--panel-light:#ffffff;--muted-light:#4b5563;--text-light:#0f1724;
+    }
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;}
+    body{background:linear-gradient(135deg,var(--bg-dark),#0b1220);color:#fff;padding:20px;transition:background .2s,color .2s}
+    .container{max-width:1200px;margin:0 auto}
+    .header{text-align:center;margin-bottom:18px}
+    h1{font-size:2.1rem;margin:0}
+    .panel{background:var(--panel-dark);border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:0 10px 30px rgba(2,6,23,.6)}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px}
+    button{background:#111827;border:0;color:#fff;padding:10px 12px;border-radius:8px;cursor:pointer}
+    button.primary{background:var(--accent);}
+    .grid{display:grid;gap:12px}
+    .wrestler-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+    .card{background:var(--card);padding:12px;border-radius:10px}
+    input[type=text]{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+    .avatar{width:96px;height:96px;border-radius:50%;background:rgba(255,255,255,0.03);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:28px;margin:0 auto 8px;overflow:hidden}
+    .stat-btn{width:100%;padding:10px;border-radius:8px;border:0;color:#fff;font-weight:700}
+    .stat-row{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+    .small-btn{padding:6px;border-radius:6px;border:0;background:rgba(255,255,255,0.05);color:inherit}
+    .footer{margin-top:18px;text-align:center;color:rgba(255,255,255,0.6)}
+    .topline{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:center}
+    label{display:flex;gap:6px;align-items:center}
+    .analytics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+    .badge{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.06)}
+    .hidden{display:none}
+
+    /* Light theme overrides */
+    body.light{background:linear-gradient(135deg,var(--bg-light),#e6eefb);color:var(--text-light)}
+    body.light .panel{background:var(--panel-light);box-shadow:0 6px 20px rgba(16,24,40,.06);}
+    body.light .card{background:#f3f4f6;color:var(--text-light)}
+    body.light button{background:#fff;color:var(--text-light);border:1px solid rgba(0,0,0,0.04)}
+    body.light button.primary{background:var(--accent);color:#fff}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🏆 Wrestling Match Analytics (HTML)</h1>
+      <div class="topline" style="margin-top:8px">
+        <div class="badge">Match Type: <select id="matchType"><option>Singles Match</option><option>Tag Team Match</option><option>Triple Threat</option><option>Fatal 4-Way</option></select></div>
+        <input id="venue" type="text" placeholder="Venue" style="min-width:160px" />
+        <input id="eventName" type="text" placeholder="Event Name" style="min-width:160px" />
+        <div class="badge">Theme: <select id="themeSelect"><option value="dark">Dark</option><option value="light">Light</option></select></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div style="text-align:center">
+        <div style="font-family:monospace;font-size:48px;font-weight:700" id="timerDisplay">00:00</div>
+      </div>
+      <div class="controls">
+        <button id="startBtn" class="primary">▶ Start</button>
+        <button id="pauseBtn">⏸ Pause</button>
+        <button id="resetBtn">■ Reset</button>
+        <button id="undoBtn">↶ Undo</button>
+        <button id="addWrestler">＋ Add Wrestler</button>
+        <button id="toggleStats">📊 Analytics</button>
+        <button id="saveMatch">💾 Save</button>
+        <button id="loadMatch">📂 Load</button>
+        <button id="csvBtn">⬇ CSV</button>
+        <button id="imgBtn">🖼 Export Image</button>
+        <button id="resetAll">Reset All</button>
+      </div>
+    </div>
+
+    <div id="analyticsPanel" class="panel hidden">
+      <h3>📊 Match Analytics</h3>
+      <div class="analytics-grid" style="margin-top:12px">
+        <div class="card"><div>Total Actions</div><div id="totalActions" style="font-size:20px;font-weight:700;margin-top:8px">0</div></div>
+        <div class="card"><div>Match Duration</div><div id="matchDuration" style="font-size:20px;font-weight:700;margin-top:8px">00:00</div></div>
+        <div class="card"><div>Highest Dominance</div><div id="highestDominance" style="font-size:20px;font-weight:700;margin-top:8px">0</div></div>
+        <div class="card"><div>Actions / Minute</div><div id="apm" style="font-size:20px;font-weight:700;margin-top:8px">0</div></div>
+      </div>
+    </div>
+
+    <div id="wrestlersArea" class="wrestler-grid"></div>
+
+    <div class="footer">
+      <div>⏱️ Match Duration: <span id="footerTime">00:00</span> | 📊 Total Actions: <span id="footerActions">0</span> | 🎯 Pace: <span id="footerPace">0</span> actions/min</div>
+      <div style="margin-top:6px;color:rgba(255,255,255,0.45)">Pro Tip: Use the small buttons to rapidly adjust values. Use upload to add wrestler images.</div>
+    </div>
+
+  </div>
+
+  <!-- Hidden canvas used for image export and capture -->
+  <canvas id="exportCanvas" class="hidden"></canvas>
+
+  <input type="file" id="fileLoader" accept=".json" class="hidden" />
+
+  <script>
+    // App state
+    let state = {
+      wrestlers: [
+        { id:1, name:'Wrestler 1', image:null, stats:{strikes:0,strikedowns:0,grapples:0,submissions:0,reversals:0,nearfalls:0,taunts:0,dives:0}, result:null },
+        { id:2, name:'Wrestler 2', image:null, stats:{strikes:0,strikedowns:0,grapples:0,submissions:0,reversals:0,nearfalls:0,taunts:0,dives:0}, result:null }
+      ],
+      timer:0, isRunning:false, matchType:'Singles Match', venue:'', event:'', undoStack:[], soundEnabled:true, autoSave:true, theme:'dark'
+    };
+
+    // References
+    const timerDisplay = document.getElementById('timerDisplay');
+    const matchTypeSelect = document.getElementById('matchType');
+    const venueInput = document.getElementById('venue');
+    const eventInput = document.getElementById('eventName');
+    const wrestlersArea = document.getElementById('wrestlersArea');
+    const exportCanvas = document.getElementById('exportCanvas');
+
+    // init
+    function init(){
+      // load saved quick data
+      const saved = localStorage.getItem('wrestlingMatchData');
+      if(saved){
+        try{
+          const d = JSON.parse(saved);
+          if(d.wrestlers) state.wrestlers = d.wrestlers;
+          if(d.timer) state.timer = d.timer;
+          if(d.matchType) state.matchType = d.matchType;
+          if(d.venue) state.venue = d.venue;
+          if(d.event) state.event = d.event;
+        }catch(e){console.warn('invalid saved data');}
+      }
+
+      // hydrate UI
+      matchTypeSelect.value = state.matchType;
+      venueInput.value = state.venue;
+      eventInput.value = state.event;
+      document.getElementById('themeSelect').value = state.theme;
+      applyTheme();
+      renderWrestlers();
+      refreshUI();
+    }
+
+    // timer
+    let timerInterval = null;
+    function startTimer(){ if(state.isRunning) return; state.isRunning=true; playSound('timer'); timerInterval = setInterval(()=>{ state.timer++; refreshTimer(); autoSave(); },1000); }
+    function pauseTimer(){ state.isRunning=false; playSound('timer'); clearInterval(timerInterval); }
+    function resetTimer(){ state.isRunning=false; state.timer=0; clearInterval(timerInterval); playSound('reset'); refreshTimer(); }
+    function formatTime(s){ const m=Math.floor(s/60); const sec=s%60; return String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0'); }
+    function refreshTimer(){ timerDisplay.textContent = formatTime(state.timer); document.getElementById('matchDuration').textContent = formatTime(state.timer); document.getElementById('footerTime').textContent = formatTime(state.timer); updateAnalytics(); }
+
+    // audio
+    let audioCtx=null;
+    function ensureAudio(){ if(!audioCtx){ try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ audioCtx=null; } } }
+    function playSound(type){ if(!state.soundEnabled) return; ensureAudio(); if(!audioCtx) return; const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); const freqs={increment:800,decrement:400,timer:1000,reset:300}; o.frequency.setValueAtTime(freqs[type]||600,audioCtx.currentTime); g.gain.setValueAtTime(0.08,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+0.1); o.start(audioCtx.currentTime); o.stop(audioCtx.currentTime+0.1); }
+
+    // undo stack
+    function saveToUndo(){ state.undoStack = [...state.undoStack.slice(-9), JSON.stringify(state.wrestlers)]; }
+    function undo(){ if(!state.undoStack.length) return; const last = state.undoStack[state.undoStack.length-1]; state.wrestlers = JSON.parse(last); state.undoStack = state.undoStack.slice(0,-1); playSound('reset'); renderWrestlers(); updateAnalytics(); }
+
+    // wrestler operations
+    function addWrestler(){ const newId = state.wrestlers.length? Math.max(...state.wrestlers.map(w=>w.id))+1 : 1; state.wrestlers.push({id:newId, name:'Wrestler '+newId, image:null, stats:{strikes:0,strikedowns:0,grapples:0,submissions:0,reversals:0,nearfalls:0,taunts:0,dives:0}, result:null}); renderWrestlers(); autoSave(); }
+    function removeWrestler(id){ if(state.wrestlers.length<=2) return; saveToUndo(); state.wrestlers = state.wrestlers.filter(w=>w.id!==id); renderWrestlers(); updateAnalytics(); autoSave(); }
+    function updateStat(wid, key, delta){ if(delta>0) saveToUndo(); state.wrestlers = state.wrestlers.map(w=> w.id===wid ? {...w, stats:{...w.stats, [key]: Math.max(0, (w.stats[key]||0)+delta)}} : w ); renderWrestlers(); playSound(delta>0?'increment':'decrement'); updateAnalytics(); autoSave(); }
+    function updateName(wid, name){ state.wrestlers = state.wrestlers.map(w=> w.id===wid?{...w,name}:w); renderWrestlers(); autoSave(); }
+    function updateResult(wid, result){ saveToUndo(); state.wrestlers = state.wrestlers.map(w => w.id===wid?{...w,result}: {...w, result: w.result===result?null:w.result}); renderWrestlers(); autoSave(); }
+
+    // images
+    function handleImageFile(wid, file){ const reader = new FileReader(); reader.onload = (e)=>{ state.wrestlers = state.wrestlers.map(w=> w.id===wid?{...w,image:e.target.result}:w); renderWrestlers(); autoSave(); }; reader.readAsDataURL(file); }
+    function captureAvatar(wid){ const c = document.createElement('canvas'); c.width=200; c.height=200; const ctx=c.getContext('2d'); ctx.fillStyle='#4F46E5'; ctx.fillRect(0,0,200,200); ctx.fillStyle='white'; ctx.font='28px Arial'; ctx.textAlign='center'; ctx.fillText('📷',100,110); const data=c.toDataURL(); state.wrestlers = state.wrestlers.map(w=> w.id===wid?{...w,image:data}:w); renderWrestlers(); autoSave(); }
+
+    // exports
+    function exportToCSV(){ const headers=['Wrestler','Strikes','Strikedowns','Grapples','Submissions','Reversals','Near Falls','Taunts','Dives','Total Actions','Offence %','Strikedown Rate %','Reversal Rate %','Dominance Score','Result'];
+      const matchInfo=[`Match Type: ${state.matchType}`,`Venue: ${state.venue}`,`Event: ${state.event}`,`Duration: ${formatTime(state.timer)}`,`Date: ${new Date().toLocaleDateString()}`,''];
+      const rows = state.wrestlers.map(w=>{
+        const total = totalActions(w);
+        return [w.name,w.stats.strikes,w.stats.strikedowns,w.stats.grapples,w.stats.submissions,w.stats.reversals,w.stats.nearfalls,w.stats.taunts,w.stats.dives,total, offencePercentage(w)+'%', strikedownRate(w)+'%', reversalRate(w)+'%', dominanceScore(w), w.result||'N/A'].join(',');
+      });
+      const csv = matchInfo.join('\n') + '\n' + headers.join(',') + '\n' + rows.join('\n');
+      const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`wrestling-match-${(state.event||'stats')}-${new Date().toISOString().split('T')[0]}.csv`; a.click(); URL.revokeObjectURL(url);
+    }
+
+    function exportAsImage(){ const canvas = exportCanvas; const ctx = canvas.getContext('2d'); const w=1200,h=800,scale=window.devicePixelRatio||1; canvas.width=w*scale; canvas.height=h*scale; canvas.style.width=w+'px'; canvas.style.height=h+'px'; ctx.scale(scale,scale);
+      const bg = state.theme==='dark'? '#1F2937' : '#F9FAFB'; ctx.fillStyle = bg; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle = state.theme==='dark' ? '#FFFFFF' : '#000000'; ctx.font='bold 28px Arial'; ctx.textAlign='center'; ctx.fillText(`Wrestling Match Statistics - ${formatTime(state.timer)}`, w/2, 40);
+      ctx.font='16px Arial'; ctx.fillText(`${state.matchType} | ${state.venue} | ${state.event}`, w/2, 70);
+      state.wrestlers.forEach((wr,i)=>{
+        const x = (i+1)*(w/(state.wrestlers.length+1)); const y=120;
+        ctx.fillStyle = state.theme==='dark' ? '#374151' : '#E5E7EB'; ctx.fillRect(x-150,y,300,420);
+        ctx.fillStyle = state.theme==='dark' ? '#fff' : '#000'; ctx.font='bold 20px Arial'; ctx.textAlign='center'; ctx.fillText(wr.name, x, y+32);
+        ctx.font='14px Arial'; let yOffset=70; for(const [k,v] of Object.entries(wr.stats)){ ctx.fillText(`${k}: ${v}`, x, y+yOffset); yOffset+=22; }
+        ctx.fillText(`Total: ${totalActions(wr)}`, x, y+yOffset+16);
+      });
+      const a=document.createElement('a'); a.download=`wrestling-match-stats-${new Date().toISOString().split('T')[0]}.png`; a.href=canvas.toDataURL(); a.click();
+    }
+
+    // save/load
+    function saveMatch(){ const match={ wrestlers:state.wrestlers, timer:state.timer, matchType:state.matchType, venue:state.venue, event:state.event, date:new Date().toISOString(), id:Date.now() };
+      const saved = JSON.parse(localStorage.getItem('savedMatches')||'[]'); saved.push(match); localStorage.setItem('savedMatches', JSON.stringify(saved)); alert('Match saved locally'); }
+    function loadMatchFile(){ document.getElementById('fileLoader').value=''; document.getElementById('fileLoader').click(); }
+    document.getElementById('fileLoader').addEventListener('change', (e)=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=(ev)=>{ try{ const data=JSON.parse(ev.target.result); if(data.wrestlers){ state.wrestlers=data.wrestlers; state.timer=data.timer||0; state.matchType=data.matchType||'Singles Match'; state.venue=data.venue||''; state.event=data.event||''; renderWrestlers(); refreshTimer(); autoSave(); } }catch(err){ alert('Invalid file'); } }; r.readAsText(f); });
+
+    // helpers
+    function totalActions(w){ return Object.values(w.stats).reduce((a,b)=>a+(b||0),0); }
+    function getAllTotalActions(){ return state.wrestlers.reduce((s,w)=>s+totalActions(w),0); }
+    function offencePercentage(w){ const all = getAllTotalActions(); return all===0?0:((totalActions(w)/all)*100).toFixed(1); }
+    function strikedownRate(w){ return (w.stats.strikes||0)===0?0:(((w.stats.strikedowns||0)/(w.stats.strikes||0))*100).toFixed(1); }
+    function reversalRate(w){ const tot = totalActions(w); return tot===0?0:(((w.stats.reversals||0)/tot)*100).toFixed(1); }
+    function dominanceScore(w){ const weights={strikes:1,strikedowns:3,grapples:2,submissions:4,reversals:2,nearfalls:5,taunts:0.5,dives:3}; return Object.entries(w.stats).reduce((sc,[k,v])=>sc + (v*(weights[k]||1)),0); }
+
+    function updateAnalytics(){ document.getElementById('totalActions').textContent = getAllTotalActions(); document.getElementById('footerActions').textContent = getAllTotalActions(); document.getElementById('footerPace').textContent = (getAllTotalActions()/Math.max(state.timer/60,1)).toFixed(1); document.getElementById('apm').textContent = (getAllTotalActions()/Math.max(state.timer/60,1)).toFixed(1); document.getElementById('highestDominance').textContent = Math.max(...state.wrestlers.map(w=>dominanceScore(w))); }
+
+    // render
+    function renderWrestlers(){ wrestlersArea.innerHTML=''; state.wrestlers.forEach(w=>{
+      const card = document.createElement('div'); card.className='card';
+      const removeBtn = document.createElement('button'); removeBtn.textContent='✖'; removeBtn.style.float='right'; removeBtn.className='small-btn'; removeBtn.onclick=()=>removeWrestler(w.id);
+      card.appendChild(removeBtn);
+      const nameInput = document.createElement('input'); nameInput.type='text'; nameInput.value=w.name; nameInput.oninput=(e)=>updateName(w.id,e.target.value); nameInput.style.width='100%'; nameInput.style.fontSize='18px'; nameInput.style.fontWeight='700'; nameInput.style.textAlign='center'; nameInput.style.background='transparent'; nameInput.style.border='none'; nameInput.style.marginBottom='8px';
+      card.appendChild(nameInput);
+      const avatar = document.createElement('div'); avatar.className='avatar'; if(w.image){ const img = document.createElement('img'); img.src=w.image; img.style.width='100%'; img.style.height='100%'; img.style.objectFit='cover'; avatar.appendChild(img); } else { avatar.textContent = w.name.charAt(0); }
+      card.appendChild(avatar);
+      // upload & capture
+      const upRow = document.createElement('div'); upRow.style.display='flex'; upRow.style.gap='8px'; upRow.style.justifyContent='center'; upRow.style.marginBottom='8px';
+      const fileInput = document.createElement('input'); fileInput.type='file'; fileInput.accept='image/*'; fileInput.className='hidden'; fileInput.onchange=(e)=>{ if(e.target.files[0]) handleImageFile(w.id,e.target.files[0]); };
+      const uploadBtn = document.createElement('button'); uploadBtn.textContent='Upload'; uploadBtn.onclick=()=>fileInput.click(); uploadBtn.className='small-btn';
+      const capBtn = document.createElement('button'); capBtn.textContent='Capture'; capBtn.onclick=()=>captureAvatar(w.id); capBtn.className='small-btn';
+      upRow.appendChild(fileInput); upRow.appendChild(uploadBtn); upRow.appendChild(capBtn); card.appendChild(upRow);
+
+      // stats
+      const statTypes = [
+        {key:'strikes',label:'Strikes',color:'#ef4444'},
+        {key:'strikedowns',label:'Strikedowns',color:'#f97316'},
+        {key:'grapples',label:'Grapples',color:'#3b82f6'},
+        {key:'submissions',label:'Submissions',color:'#8b5cf6'},
+        {key:'reversals',label:'Reversals',color:'#10b981'},
+        {key:'nearfalls',label:'Near Falls',color:'#f59e0b'},
+        {key:'taunts',label:'Taunts',color:'#ec4899'},
+        {key:'dives',label:'High Risk',color:'#6366f1'}
+      ];
+      const statGrid = document.createElement('div'); statGrid.className='stat-row'; statGrid.style.marginBottom='8px';
+      statTypes.forEach(st=>{
+        const col = document.createElement('div');
+        const btn = document.createElement('button'); btn.className='stat-btn'; btn.style.background=st.color; btn.innerHTML = `<div style="font-size:12px">${st.label}</div><div style="font-size:22px;font-weight:800;margin-top:6px">${w.stats[st.key]||0}</div>`;
+        btn.onclick = ()=> updateStat(w.id, st.key, 1);
+        const mini = document.createElement('div'); mini.style.display='flex'; mini.style.gap='6px'; mini.style.marginTop='6px';
+        const dec = document.createElement('button'); dec.textContent='-1'; dec.className='small-btn'; dec.onclick = ()=> updateStat(w.id, st.key, -1);
+        const plus5 = document.createElement('button'); plus5.textContent='+5'; plus5.className='small-btn'; plus5.onclick = ()=> updateStat(w.id, st.key, 5);
+        const plus10 = document.createElement('button'); plus10.textContent='+10'; plus10.className='small-btn'; plus10.onclick = ()=> updateStat(w.id, st.key, 10);
+        mini.appendChild(dec); mini.appendChild(plus5); mini.appendChild(plus10);
+        col.appendChild(btn); col.appendChild(mini);
+        statGrid.appendChild(col);
+      });
+      card.appendChild(statGrid);
+
+      // result buttons
+      const resRow = document.createElement('div'); resRow.style.display='flex'; resRow.style.gap='8px'; resRow.style.marginBottom='8px';
+      const winBtn = document.createElement('button'); winBtn.textContent='👑 Winner'; winBtn.className='small-btn'; winBtn.onclick=()=>updateResult(w.id,'winner');
+      const loseBtn = document.createElement('button'); loseBtn.textContent='💔 Loser'; loseBtn.className='small-btn'; loseBtn.onclick=()=>updateResult(w.id,'loser');
+      resRow.appendChild(winBtn); resRow.appendChild(loseBtn); card.appendChild(resRow);
+
+      // stats panel
+      const statsPanel = document.createElement('div'); statsPanel.className='card'; statsPanel.style.marginTop='6px'; statsPanel.style.padding='8px';
+      const inner = document.createElement('div'); inner.innerHTML = `\n        <div style="display:flex;justify-content:space-between"><div>Total Actions:</div><div style="font-weight:700">${totalActions(w)}</div></div>\n        <div style="display:flex;justify-content:space-between"><div>Match Offence:</div><div style="font-weight:700">${offencePercentage(w)}%</div></div>\n        <div style="display:flex;justify-content:space-between"><div>Strikedown Rate:</div><div style="font-weight:700">${strikedownRate(w)}%</div></div>\n        <div style="display:flex;justify-content:space-between"><div>Reversal Rate:</div><div style="font-weight:700">${reversalRate(w)}%</div></div>\n        <div style="display:flex;justify-content:space-between;margin-top:6px;border-top:1px solid rgba(255,255,255,0.04);padding-top:6px"><div>Dominance Score:</div><div style="font-weight:800">${dominanceScore(w)}</div></div>\n      `;
+      statsPanel.appendChild(inner);
+      card.appendChild(statsPanel);
+
+      // performance badge
+      const badge = document.createElement('div'); badge.style.textAlign='center'; badge.style.marginTop='8px';
+      if(w.result==='winner') badge.innerHTML = '<div style="background:linear-gradient(90deg,#fbbf24,#f97316);color:#000;padding:8px;border-radius:999px;font-weight:800">🏆 MATCH WINNER</div>';
+      else if(w.result==='loser') badge.innerHTML = '<div style="background:#6b7280;color:#fff;padding:8px;border-radius:999px;font-weight:700">😔 Match Loser</div>';
+      else {
+        const ds = dominanceScore(w);
+        const txt = ds>=50? '🔥 Dominant Performance' : ds>=25? '💪 Strong Performance' : ds>=10? '👍 Good Performance' : '🤔 Building Momentum';
+        badge.innerHTML = `<div style="background:rgba(255,255,255,0.03);padding:6px;border-radius:999px">${txt}</div>`;
+      }
+      card.appendChild(badge);
+
+      wrestlersArea.appendChild(card);
+    }); updateAnalytics(); }
+
+    // update UI and autosave
+    function refreshUI(){ renderWrestlers(); refreshTimer(); updateAnalytics(); }
+    function autoSave(){ if(!state.autoSave) return; const saveData = { wrestlers: state.wrestlers, timer: state.timer, matchType: state.matchType, venue: state.venue, event: state.event, timestamp: new Date().toISOString() }; localStorage.setItem('wrestlingMatchData', JSON.stringify(saveData)); }
+
+    // UI wiring
+    document.getElementById('startBtn').onclick = ()=>{ startTimer(); };
+    document.getElementById('pauseBtn').onclick = ()=>{ pauseTimer(); };
+    document.getElementById('resetBtn').onclick = ()=>{ resetTimer(); }
+    document.getElementById('undoBtn').onclick = ()=>{ undo(); }
+    document.getElementById('addWrestler').onclick = ()=>{ addWrestler(); }
+    document.getElementById('toggleStats').onclick = ()=>{ document.getElementById('analyticsPanel').classList.toggle('hidden'); }
+    document.getElementById('saveMatch').onclick = ()=>{ saveMatch(); }
+    document.getElementById('loadMatch').onclick = ()=>{ loadMatchFile(); }
+    document.getElementById('csvBtn').onclick = ()=>{ exportToCSV(); }
+    document.getElementById('imgBtn').onclick = ()=>{ exportAsImage(); }
+    document.getElementById('resetAll').onclick = ()=>{ if(confirm('Reset all stats and timer?')){ saveToUndo(); state.wrestlers = state.wrestlers.map(w=>({...w, stats:{strikes:0,strikedowns:0,grapples:0,submissions:0,reversals:0,nearfalls:0,taunts:0,dives:0}, result:null})); resetTimer(); renderWrestlers(); autoSave(); } }
+
+    matchTypeSelect.onchange = (e)=>{ state.matchType = e.target.value; autoSave(); }
+    venueInput.oninput = (e)=>{ state.venue = e.target.value; autoSave(); }
+    eventInput.oninput = (e)=>{ state.event = e.target.value; autoSave(); }
+    document.getElementById('themeSelect').onchange = (e)=>{ state.theme = e.target.value; applyTheme(); }
+
+    function applyTheme(){ if(state.theme==='light'){ document.body.classList.add('light'); } else { document.body.classList.remove('light'); } }
+
+    // wire keyboard shortcuts (basic)
+    window.addEventListener('keydown',(e)=>{
+      if(e.key===' '){ e.preventDefault(); state.isRunning? pauseTimer(): startTimer(); }
+      if(e.key==='u'){ undo(); }
+    });
+
+    // init
+    init();
+  </script>
+</body>
+</html>
